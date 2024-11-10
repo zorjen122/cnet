@@ -1,0 +1,14 @@
+Hello, World
+13:36
+
+open 函数位于 <fcntl.h> 头文件中。它是一个 POSIX 标准的系统调用，用于打开文件并返回一个文件描述符。
+
+示例
+在使用 open 函数之前，确保包含相应的头文件：Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!
+Hello, EPOLL!

@@ -1,0 +1,5 @@
+build/
+demo/
+.vscode/
+*.o
+a.out
