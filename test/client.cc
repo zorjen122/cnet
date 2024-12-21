@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <assert.h>
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
@@ -19,13 +20,24 @@ int main(int argc, char *argv[])
         assert(0);
     std::cout << "Connect!\n";
 
-    char buf[1024] = {};
-    int x = read(sock, buf, 1024);
-    assert(x != -1);
-    std::cout << buf << "\n";
+    int x = 0;
+    for (;;)
+    {
 
-    x = write(sock, buf, x);
-    assert(x != -1);
+        char buf[1024] = {};
+        std::cout << "$ ";
+        scanf("%s", buf);
+        if (!strcmp(buf, "quit\n"))
+            break;
+
+        x = write(sock, buf, strlen(buf));
+
+        x = read(sock, buf, 1024);
+        assert(x != -1);
+        std::cout << buf << "\n";
+
+        assert(x != -1);
+    }
 
     x = close(sock);
     assert(x != -1);

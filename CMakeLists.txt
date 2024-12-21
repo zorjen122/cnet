@@ -7,9 +7,14 @@ project(cns VERSION 1.0 LANGUAGES CXX)
 # 设置 C++17 标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++17 -Wall -g")
 # 指定源文件目录（假设所有的 .cc 文件都位于 src 目录下）
-file(GLOB SOURCES "src/*.cc")
+file(GLOB SOURCES "src/*.cc" "src/http/*.cc")
+
+# spdlog 暂时配置
+include_directories(/usr/local/spdlog/include)
+link_directories(/usr/local/spdlog/lib)
+
 
 # 查找 pthread 和 dl 库
 find_package(Threads REQUIRED)
@@ -21,23 +26,24 @@ add_library(cnet SHARED ${SOURCES})
 add_library(cnetStatic STATIC ${SOURCES})
 
 # 将 pthread 和 dl 库链接到共享库
-target_link_libraries(cnet PRIVATE Threads::Threads dl)
+target_link_libraries(cnet PRIVATE Threads::Threads dl spdlog)
+target_link_libraries(cnetStatic PRIVATE Threads::Threads dl spdlog)
 
-# 将 pthread 和 dl 库链接到静态库
-target_link_libraries(cnetStatic PRIVATE Threads::Threads dl)
 
 # 设置共享库的输出目录
 set_target_properties(cnet PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib
 )
 
 # 设置静态库的输出目录
 set_target_properties(cnetStatic PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib
 )
 
 # 包含头文件目录
-include_directories("src/")
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/http/)
+
+
 
 # 查找测试文件（test/test*.cc）
 file(GLOB TEST_SOURCES "test/test*.cc")
@@ -49,13 +55,14 @@ foreach(test_file ${TEST_SOURCES})
 
     # 创建可执行文件
     add_executable(${test_name} ${test_file})
+    target_link_libraries(${test_name})
 
     # 链接共享库和静态库（根据需要选择一个）
-    target_link_libraries(${test_name} PRIVATE cnet cnetStatic Threads::Threads dl)
+    target_link_libraries(${test_name} PRIVATE cnet cnetStatic Threads::Threads dl spdlog)
 
     # 设置测试程序的输出目录
     set_target_properties(${test_name} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
     )
 endforeach()
 

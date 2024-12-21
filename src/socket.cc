@@ -1,261 +1,213 @@
 #include "socket.h"
-#include <iostream>
+
 #include <assert.h>
 
-namespace net
-{
-    Socket::Socket(int _family, int _socketType, int _protocol, bool _onSysNonBlock)
-        : fd(-1), family(_family), sockType(_socketType), protocol(_protocol), localAddress(), onSysNonBlock(true)
-    {
-    }
+#include <iostream>
 
-    bool Socket::initSocket()
-    {
-        if (fd == -1)
-            assert(0);
+namespace net {
+Socket::Socket(int _family, int _socketType, int _protocol, bool _onSysNonBlock)
+    : fd(-1),
+      family(_family),
+      sockType(_socketType),
+      protocol(_protocol),
+      localAddress(),
+      onSysNonBlock(true) {}
 
-        if (setOption(SOL_SOCKET, SO_REUSEADDR, 1))
-        {
-            if (sockType == Type::TCP)
-                setOption(IPPROTO_TCP, TCP_NODELAY, 0);
-        }
+bool Socket::initSocket() {
+  if (fd == -1) assert(0);
 
-        return true;
-    }
+  if (setOption(SOL_SOCKET, SO_REUSEADDR, 1)) {
+    if (sockType == Type::TCP) setOption(IPPROTO_TCP, TCP_NODELAY, 0);
+  }
 
-    template <class T>
-    bool Socket::setOption(int level, int option, const T &value)
-    {
-        if (setsockopt(fd, level, option, &value, sizeof(value)) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-            return false;
-        }
+  return true;
+}
 
-        return true;
-    }
+template <class T>
+bool Socket::setOption(int level, int option, const T &value) {
+  if (setsockopt(fd, level, option, &value, sizeof(value)) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+    return false;
+  }
 
-    template <class T>
-    bool Socket::getOption(int level, int option, T *value)
-    {
-        if (getsockopt(fd, level, option, value, nullptr) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
+  return true;
+}
 
-            return false;
-        }
-        return true;
-    }
+template <class T>
+bool Socket::getOption(int level, int option, T *value) {
+  if (getsockopt(fd, level, option, value, nullptr) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
 
-    Socket::SharedPtr Socket::CreateTCP(Socket::Family type)
-    {
-        Socket::SharedPtr sock = std::make_shared<Socket>(type, Socket::Type::TCP, 0);
-        return sock;
-    }
+    return false;
+  }
+  return true;
+}
 
-    Socket::SharedPtr Socket::CreateUDP(Socket::Family type)
-    {
-        Socket::SharedPtr sock(new Socket(type, Socket::Type::UDP, 0));
-        return sock;
-    }
-    bool Socket::newSocket()
-    {
-        fd = socket(family, sockType, protocol);
-        assert(fd != -1);
-        initSocket();
+Socket::SharedPtr Socket::CreateTCP(Socket::Family type) {
+  Socket::SharedPtr sock = std::make_shared<Socket>(type, Socket::Type::TCP, 0);
+  return sock;
+}
 
-        return true;
-    }
+Socket::SharedPtr Socket::CreateUDP(Socket::Family type) {
+  Socket::SharedPtr sock(new Socket(type, Socket::Type::UDP, 0));
+  return sock;
+}
+bool Socket::newSocket() {
+  fd = socket(family, sockType, protocol);
+  assert(fd != -1);
+  initSocket();
 
-    Socket::SharedPtr Socket::bind(Address::SharedPtr address)
-    {
-        if (fd == -1)
-            newSocket();
+  return true;
+}
 
-        localAddress = address;
+Socket::SharedPtr Socket::bind(Address::SharedPtr address) {
+  if (fd == -1) newSocket();
 
-        const sockaddr_in *addr = (const sockaddr_in *)localAddress->getAddress();
+  localAddress = address;
 
-        std::cout << "[bind]: addr-" << localAddress->getStringAddress() << "\tport-" << htons(addr->sin_port) << "\n";
+  const sockaddr_in *addr = (const sockaddr_in *)localAddress->getAddress();
 
-        if (::bind(fd, localAddress->getAddress(), localAddress->getAddressLength()) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-        }
+  std::cout << "[bind]: addr-" << localAddress->getStringAddress() << "\tport-"
+            << htons(addr->sin_port) << "\n";
 
-        return shared_from_this();
-    }
+  if (::bind(fd, localAddress->getAddress(),
+             localAddress->getAddressLength()) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+  }
 
-    bool Socket::listen(size_t backlog)
-    {
-        if (::listen(fd, backlog) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-            return false;
-        }
+  return shared_from_this();
+}
 
-        return true;
-    }
+bool Socket::listen(size_t backlog) {
+  if (::listen(fd, backlog) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+    return false;
+  }
 
-    Socket::SharedPtr Socket::accept()
-    {
-        Socket::SharedPtr clientSock(new Socket(family, sockType, protocol));
+  return true;
+}
 
-        int client = ::accept(fd, nullptr, nullptr);
-        if (client == -1)
-        {
-            net::status.setValue(errno, strerror(errno)), assert(0);
-            assert(0);
-        }
+Socket::SharedPtr Socket::accept() {
+  Socket::SharedPtr clientSock(new Socket(family, sockType, protocol));
 
-        if (clientSock->init(client))
-            return clientSock;
+  int client = ::accept(fd, nullptr, nullptr);
+  if (client == -1) {
+    net::status.setValue(errno, strerror(errno)), assert(0);
+    assert(0);
+  }
 
-        return nullptr;
-    }
+  if (clientSock->init(client)) return clientSock;
 
-    int Socket::send(const void *buf, size_t length, int flag)
-    {
-        if (!isConnected && fd == -1)
-            assert(0);
+  return nullptr;
+}
 
-        int rt = ::send(fd, buf, length, flag);
-        assert(rt != -1);
-        return rt;
-    }
-    int Socket::recv(void *buf, size_t length, int flag)
-    {
-        if (!isConnected && fd == -1)
-            assert(0);
+int Socket::send(const void *buf, size_t length, int flag) {
+  if (!isConnected && fd == -1) assert(0);
 
-        return ::recv(fd, buf, length, flag);
-    }
+  int rt = ::send(fd, buf, length, flag);
+  assert(rt != -1);
+  return rt;
+}
+int Socket::recv(void *buf, size_t length, int flag) {
+  if (!isConnected && fd == -1) assert(0);
 
-    bool Socket::init(int sock)
-    {
-        auto context = Singleton<FdManager>::GetInstance()->get(sock, onSysNonBlock);
-        if (!context || !context->isSocket())
-        {
-            assert(0);
-            return false;
-        }
+  return ::recv(fd, buf, length, flag);
+}
 
-        fd = sock;
-        isConnected = true;
-        initSocket();
-        getAddress();
+bool Socket::init(int sock) {
+  auto context = Singleton<FdManager>::GetInstance()->get(sock, onSysNonBlock);
+  if (!context || !context->isSocket()) {
+    assert(0);
+    return false;
+  }
 
-        return true;
-    }
+  fd = sock;
+  isConnected = true;
+  initSocket();
+  getAddress();
 
-    int Socket::getFamily()
-    {
-        return family;
-    }
+  return true;
+}
 
-    int Socket::getProtocol()
-    {
-        return protocol;
-    }
+int Socket::getFamily() { return family; }
 
-    int Socket::getSocketType()
-    {
-        return sockType;
-    }
+int Socket::getProtocol() { return protocol; }
 
-    Address::SharedPtr Socket::getAddress()
-    {
-        if (localAddress)
-            return localAddress;
+int Socket::getSocketType() { return sockType; }
 
-        if (fd == -1)
-            assert(0);
+Address::SharedPtr Socket::getAddress() {
+  if (localAddress) return localAddress;
 
-        sockaddr addr = {};
-        socklen_t len = sizeof(sockaddr);
-        if (getsockname(fd, &addr, &len) < 0)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-        }
+  if (fd == -1) assert(0);
 
-        localAddress = Address::create(&addr, len);
-        std::cout << localAddress->getStringAddress() << "\n";
+  sockaddr addr = {};
+  socklen_t len = sizeof(sockaddr);
+  if (getsockname(fd, &addr, &len) < 0) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+  }
 
-        return localAddress;
-    }
+  localAddress = Address::create(&addr, len);
+  std::cout << localAddress->getStringAddress() << "\n";
 
-    bool Socket::connect(Address::SharedPtr address)
-    {
-        if (fd == -1)
-            newSocket();
-        localAddress = address;
-        if (::connect(fd, localAddress->getAddress(), localAddress->getAddressLength()) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-            return false;
-        }
+  return localAddress;
+}
 
-        return true;
-    }
+bool Socket::connect(Address::SharedPtr address) {
+  if (fd == -1) newSocket();
+  localAddress = address;
+  if (::connect(fd, localAddress->getAddress(),
+                localAddress->getAddressLength()) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+    return false;
+  }
 
-    bool Socket::close()
-    {
-        if (!isConnected)
-            return false;
+  return true;
+}
 
-        if (::close(fd) == -1)
-        {
-            net::status.setValue(errno, strerror(errno));
-            assert(0);
-            return false;
-        }
+bool Socket::close() {
+  if (!isConnected) return false;
 
-        return true;
-    }
+  if (::close(fd) == -1) {
+    net::status.setValue(errno, strerror(errno));
+    assert(0);
+    return false;
+  }
 
-    int Socket::getDiscriptor()
-    {
-        return fd;
-    }
+  return true;
+}
 
-    bool Socket::setRecvTimeout(int64_t ms)
-    {
-        struct timeval v
-        {
-            int(ms / 1000),
-                int(ms % 1000 * 1000)
-        };
-        return setOption(SOL_SOCKET, SO_RCVTIMEO, v);
-    }
+int Socket::getDiscriptor() { return fd; }
 
-    bool Socket::setSendTimeout(int64_t ms)
-    {
-        struct timeval v
-        {
-            int(ms / 1000),
-                int(ms % 1000 * 1000)
-        };
-        return setOption(SOL_SOCKET, SO_SNDTIMEO, v);
-    }
+bool Socket::setRecvTimeout(int64_t ms) {
+  struct timeval v {
+    int(ms / 1000), int(ms % 1000 * 1000)
+  };
+  return setOption(SOL_SOCKET, SO_RCVTIMEO, v);
+}
 
-    int64_t Socket::getRecvTimeout()
-    {
-        int64_t v = 0;
-        getOption(SOL_SOCKET, SO_RCVTIMEO, &v);
+bool Socket::setSendTimeout(int64_t ms) {
+  struct timeval v {
+    int(ms / 1000), int(ms % 1000 * 1000)
+  };
+  return setOption(SOL_SOCKET, SO_SNDTIMEO, v);
+}
 
-        return v;
-    }
-    int64_t Socket::getSendTimeout()
-    {
-        int64_t v = 0;
-        getOption(SOL_SOCKET, SO_SNDTIMEO, &v);
+int64_t Socket::getRecvTimeout() {
+  int64_t v = 0;
+  getOption(SOL_SOCKET, SO_RCVTIMEO, &v);
 
-        return v;
-    }
-};
+  return v;
+}
+int64_t Socket::getSendTimeout() {
+  int64_t v = 0;
+  getOption(SOL_SOCKET, SO_SNDTIMEO, &v);
+
+  return v;
+}
+};  // namespace net

@@ -1,5 +1,7 @@
 build/
 demo/
 .vscode/
+bin/
+/.cache
 *.o
 a.out

@@ -1,5 +1,5 @@
-#include "../src/tcpServer.h"
-#include "../src/iomanager.h"
+#include "tcpServer.h"
+#include "iomanager.h"
 
 #include <iostream>
 #include <assert.h>
@@ -16,13 +16,12 @@ void echo(net::Socket::SharedPtr client)
     int rt = client->recv(buf, 1024, 0);
     assert(rt != -1);
     std::cout << "read-buf: " << buf << "\n";
-
     rt = client->send(buf, strlen(buf), 0);
     assert(rt != -1);
     std::cout << "send-to: " << buf << " [state: over!]\n";
 
     std::cout << "recv...\n";
-    // iom.add(client->getDiscriptor(), IOManager::READ, std::bind(echo, client));
+    iom.add(client->getDiscriptor(), IOManager::READ, std::bind(echo, client));
 }
 
 void run()
