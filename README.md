@@ -12,6 +12,7 @@ g++ demo.cc -L{YOUR_DIR}/build/lib -lcnet
 ```
 
 # 目录
+```
 ├── demo
 │   └── log
 ├── include
@@ -21,3 +22,4 @@ g++ demo.cc -L{YOUR_DIR}/build/lib -lcnet
 ├── test
 │   └── data_test
 └── update
+```
