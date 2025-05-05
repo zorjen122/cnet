@@ -1,5 +1,3 @@
-# cnet
-一个C++17 网络框架
 ## 使用
 ```[shell]
 mkdir build
